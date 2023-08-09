@@ -1,58 +1,66 @@
-from rest_framework import status
-from rest_framework.decorators import api_view,permission_classes
+from django.shortcuts import render
+from django.http import JsonResponse
+from .serializers import UserSerializer
+from rest_framework.views import APIView
 from rest_framework.response import Response
-from rest_framework_simplejwt.tokens import RefreshToken
-from .serializers import CustomUserSerializer, CustomUserSerializer
-from django.contrib.auth import authenticate
-from rest_framework.permissions import IsAuthenticated
-from rest_framework.authentication import TokenAuthentication
-
-@api_view(['POST'])
-def register_user(request):
-    serializer = CustomUserSerializer(data=request.data)
-    if serializer.is_valid():
-        user = serializer.save()
-        refresh = RefreshToken.for_user(user)
-        return Response({
-            'refresh': str(refresh),
-            'access': str(refresh.access_token),
-        })
-    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+from .models import User
+import jwt
+import datetime
 
 
+class RegisterView(APIView):
+    def post(self, request):
+        serializer = UserSerializer(data=request.data)
+        if serializer.is_valid():
+            user = serializer.save()
+            user.save()
+            return JsonResponse({'message': 'registered successfully', 'status': 200})
+        else:
+            print(serializer.errors)
+            return JsonResponse({'message': 'Invalid Credentials', 'status': 401})
+        
 
-@api_view(['POST'])
-def login_user(request):
-    email = request.data.get('email')
-    password = request.data.get('password')
-    user = authenticate(request, email=email, password=password)
-    if user is not None:
-        refresh = RefreshToken.for_user(user)
-        response = Response()
-        response['Authorization'] = f'Bearer {str(refresh.access_token)}'
-        response.data = {
-            'refresh': str(refresh),
-            'access': str(refresh.access_token),
+class LoginView(APIView):
+    def post(self, request):
+        print(request.data)
+        email = request.data['email']
+        password = request.data['password']
+        user = User.objects.filter(email=email).first()
+        if user is None:
+            return JsonResponse(({'message' : 'Invalid Credentials',
+                    'status':401}))
+        if not user.check_password(password):
+            return JsonResponse(({'message' : 'Invalid Credentials',
+                    'status':401}))
+        payload = {
+            'id': user.id,
+            'exp': datetime.datetime.utcnow() + datetime.timedelta(minutes=60),
+            'iat':  datetime.datetime.utcnow()
         }
+        token = jwt.encode(payload, 'PLEASE WORK', algorithm='HS256').decode('utf-8')
+        response = JsonResponse({'message': 'login successfully', 'status': 200})
+        response.set_cookie('jwt', token)
         return response
-    return Response({'error': 'Invalid credentials'}, status=status.HTTP_401_UNAUTHORIZED)
-
-
-@api_view(['POST'])
-@permission_classes([IsAuthenticated])
-def logout_user(request):
-    try:
-        refresh_token = request.data.get('refresh_token')
-        token = RefreshToken(refresh_token)
-        token.blacklist()
-        return Response({'message': 'User logged out successfully.'}, status=status.HTTP_205_RESET_CONTENT)
-    except Exception as e:
-        return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
     
-
-@api_view(['GET'])
-@permission_classes([IsAuthenticated])
-def get_user_data(request):
-    user = request.user
-    serializer = CustomUserSerializer(user)
-    return Response(serializer.data)
+class UserView(APIView):
+    def get(self, request):
+        token = request.COOKIES.get('jwt')
+        if not token:
+            return JsonResponse(({'message' : 'Invalid Credentials',
+                    'status':401}))
+        try:
+            payload = jwt.decode(token,'PLEASE WORK',algorithms=['HS256'])
+        except jwt.ExpiredSignatureError:
+            return JsonResponse(({'message' : 'Invalid Credentials',
+                    'status':401}))
+        user = User.objects.filter(id=payload['id']).first()
+        serializer = UserSerializer(user)
+        return Response(serializer.data)
+    
+class LogoutView(APIView):
+    def post(self,request):
+        response =Response()
+        response.delete_cookie('jwt')
+        response.data={
+            'message':'Logged out Succesfully','status':200}
+        return response

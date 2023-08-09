@@ -1,0 +1,26 @@
+version: '3.8'
+services:
+  user-service:
+    image: user-service
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    volumes:
+      - .:/app
+    depends_on:
+      - "database"
+  
+  database:
+    image: mysql:latest
+    restart: always
+    ports:
+      - "33060:3306"
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: user_auth
+      MYSQL_USER: root
+      MYSQL_PASSWORD: root
+    volumes:
+      - .dbdata:/var/lib/mysql
