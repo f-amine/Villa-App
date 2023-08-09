@@ -1,3 +1,5 @@
 */.dbdata
 */.vscode
 */user_auth.session.sql
+.vscode
+reservation_db.session.sql

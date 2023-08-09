@@ -1,7 +1,7 @@
 version: '3.8'
 services:
-  user-service:
-    image: user-service
+  reservation-service:
+    image: reservation-service
     build:
       context: .
       dockerfile: Dockerfile
@@ -19,8 +19,8 @@ services:
       - "33060:3306"
     environment:
       MYSQL_ROOT_PASSWORD: root
-      MYSQL_DATABASE: user_auth
-      MYSQL_USER: root
-      MYSQL_PASSWORD: root
+      MYSQL_DATABASE: reservation
+      MYSQL_USER: amine
+      MYSQL_PASSWORD: 1234
     volumes:
       - .dbdata:/var/lib/mysql
