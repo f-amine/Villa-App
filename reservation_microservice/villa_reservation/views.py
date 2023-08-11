@@ -2,12 +2,15 @@ from django.shortcuts import render
 from django.http import JsonResponse
 from django.core import serializers
 from .models import Reservation
+from .serializers import ReservationSerializer
 import jwt
 import requests
 from django.http import JsonResponse
 from datetime import datetime, timedelta,date
 from icalendar import Calendar, Event
 from django.http import HttpResponse
+from django.views.decorators.csrf import csrf_exempt
+from rest_framework.decorators import api_view
 
 
 def get_past_reservations(request):
@@ -21,7 +24,7 @@ def get_past_reservations(request):
     user_id = payload['id']
     past_reservations = Reservation.objects.filter(user_id=user_id, check_out_date__lt=date.today())
     reservations_data = [{'check_in_date': r.check_in_date, 'check_out_date': r.check_out_date, 'guest_numbers': r.guest_numbers, 'is_family': r.is_family} for r in past_reservations]
-    return JsonResponse({'reservations': reservations_data})
+    return JsonResponse({'past reservations': reservations_data})
 #get_ongoing_reservations
 
 def get_ongoing_reservations(request):
@@ -89,6 +92,8 @@ def check_villa_availability(request):
         return JsonResponse({'message': 'Invalid date format', 'status': 400})
     if check_in_date >= check_out_date:
         return JsonResponse({'message': 'Check-in date must be before check-out date', 'status': 400})
+    if check_in_date < date.today():
+        return JsonResponse({'message': 'Invalid date', 'status': 400})
     if Reservation.objects.filter(check_in_date__lt=check_out_date, check_out_date__gt=check_in_date).exists():
         return JsonResponse({'message': 'Villa is not available for the requested period', 'status': 400})
     return JsonResponse({'message': 'Villa is available for the requested period', 'status': 200})
@@ -113,29 +118,42 @@ def update_reservation(request, reservation_id):
 
     return JsonResponse({'error': 'Invalid request method.'}, status=405)
 
-
-
+@api_view(['POST'])
 def create_reservation(request):
     if request.method == 'POST':
-
-        start_date = request.POST.get('start_date')
-        end_date = request.POST.get('end_date')
-        guest_numbers = request.POST.get('guest_numbers')
-        is_family = request.POST.get('is_family')
+        check_in_date = request.data['check_in_date']
+        check_out_date = request.data['check_out_date']
         token = request.COOKIES.get('jwt')
+        #getting the user of the villa
         if not token:
             return JsonResponse({'message': 'Invalid Credentials', 'status': 401})
         try:
             payload = jwt.decode(token, 'PLEASE WORK', algorithms=['HS256'])
         except jwt.ExpiredSignatureError:
             return JsonResponse({'message': 'Invalid Credentials', 'status': 401})
-        user_id = payload['id']
-        reservation = Reservation(check_in_date=start_date, check_out_date=end_date, guest=user_id, guest_numbers=guest_numbers, is_family=is_family)
-        reservation.save()
-
-        data = serializers.serialize('json', [reservation])
-        return JsonResponse(data, safe=False, status=201)
-
+        #Checking Villa availability
+        if not check_in_date or not check_out_date:
+            return JsonResponse({'message': 'Invalid request parameters', 'status': 400})
+        try:
+            check_in_date = date.fromisoformat(check_in_date)
+            check_out_date = date.fromisoformat(check_out_date)
+        except ValueError:
+            return JsonResponse({'message': 'Invalid date format', 'status': 400})
+        if check_in_date >= check_out_date:
+            return JsonResponse({'message': 'Check-in date must be before check-out date', 'status': 400})
+        if check_in_date < date.today():
+            return JsonResponse({'message': 'Invalid date', 'status': 400})
+        if Reservation.objects.filter(check_in_date__lt=check_out_date, check_out_date__gt=check_in_date).exists():
+            return JsonResponse({'message': 'Villa is not available for the requested period', 'status': 400})
+        guest = payload['id']
+        data = request.data.copy()
+        data['user_id'] = guest
+        #creating the reservation
+        serializer = ReservationSerializer(data=data, context={'request': request})
+        if serializer.is_valid():
+            serializer.save(user_id=guest)
+            return JsonResponse(serializer.data, status=201)
+        return JsonResponse(serializer.errors, status=400)
     return JsonResponse({'error': 'Invalid request method.'}, status=405)
 
 #syncs airbnb calendar with our calendar
@@ -168,12 +186,11 @@ def generate_ical(request):
     reservations = Reservation.objects.filter(check_in_date__gte=start_date, check_out_date__lte=end_date)
     calendar = Calendar()
     for r in reservations:
-        for i in range((r.check_out_date - r.check_in_date).days):
-            event = Event()
-            event.add('summary', 'Reserved')
-            event.add('dtstart', r.check_in_date + timedelta(days=i))
-            event.add('dtend', r.check_in_date + timedelta(days=i+1))
-            calendar.add_component(event)
+        event = Event()
+        event.add('summary', 'Reserved')
+        event.add('dtstart', r.check_in_date)
+        event.add('dtend', r.check_out_date)
+        calendar.add_component(event)
     response = HttpResponse(calendar.to_ical(), content_type='text/calendar')
     response['Content-Disposition'] = 'attachment; filename="calendar.ics"'
     return response

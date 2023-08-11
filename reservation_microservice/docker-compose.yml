@@ -6,17 +6,17 @@ services:
       context: .
       dockerfile: Dockerfile
     ports:
-      - "8000:8000"
+      - "8080:8080"
     volumes:
       - .:/app
     depends_on:
-      - "database"
+      - "database_reservation"
   
-  database:
+  database_reservation:
     image: mysql:latest
     restart: always
     ports:
-      - "33060:3306"
+      - "33066:3306"
     environment:
       MYSQL_ROOT_PASSWORD: root
       MYSQL_DATABASE: reservation

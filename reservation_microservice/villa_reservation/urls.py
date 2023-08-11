@@ -1,15 +1,15 @@
 from django.urls import path
 from . import views
 
-app_name = 'myapp'
-
 urlpatterns = [
-    path('api/<int:villa_id>/past_reservations/', views.get_past_reservations, name='past_reservations'),
-    path('api/<int:villa_id>/ongoing_reservations/', views.get_ongoing_reservations, name='ongoing_reservations'),
-    path('api/<int:villa_id>/upcoming_reservations/', views.get_upcoming_reservations, name='upcoming_reservations'),
-    path('api/<int:villa_id>/availability/', views.get_villa_availability, name='villa_availability'),
-    path('api/<int:villa_id>/check_availability/<str:check_in_date>/<str:check_out_date>/', views.check_villa_availability, name='check_availability'),
-    path('api/reservations/<int:reservation_id>/', views.update_reservation, name='update_reservation'),
-    path('api/reservations/create/', views.create_reservation, name='create_reservation'),
-    path('api/reservations/', views.get_all_reservations, name='all_reservations'),
+    path('past_reservations/', views.get_past_reservations, name='past_reservations'),
+    path('ongoing_reservations/', views.get_ongoing_reservations, name='ongoing_reservations'),
+    path('upcoming_reservations/', views.get_upcoming_reservations, name='upcoming_reservations'),
+    path('all_reservations/', views.get_all_reservations, name='all_reservations'),
+    path('villa_availability/', views.get_villa_availability, name='villa_availability'),
+    path('check_villa_availability/', views.check_villa_availability, name='check_villa_availability'),
+    path('update_reservation/<int:reservation_id>/', views.update_reservation, name='update_reservation'),
+    path('create_reservation/', views.create_reservation, name='create_reservation'),
+    path('sync_airbnb_calendar/', views.sync_airbnb_calendar, name='sync_airbnb_calendar'),
+    path('generate_ical/', views.generate_ical, name='generate_ical'),
 ]
