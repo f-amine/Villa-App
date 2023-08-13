@@ -6,5 +6,5 @@ urlpatterns = [
     path('api/logout/', LogoutView.as_view(), name='logout_user'),
     path('api/user/', UserView.as_view(), name='get_user_data'),
     path('api/user_by_email/<str:email>',GetUserByEmailView.as_view(),name='get_user_by_email'),
-    path('api/user/<int:pk>/', GetUserByIdView.as_view(), name='get_user_data'),
+    path('api/user_by_id/<str:id>/', GetUserByIdView.as_view(), name='get_user_data'),
 ]

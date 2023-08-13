@@ -147,7 +147,11 @@ def create_reservation(request):
         serializer = ReservationSerializer(data=data, context={'request': request})
         if serializer.is_valid():
             serializer.save(user_id=guest)
-            return JsonResponse(serializer.data,{'total price':total_price}, status=201)
+            response_data = {
+                'reservation': serializer.data,
+                'total_price': total_price,
+            }
+            return JsonResponse(response_data, status=201)
         return JsonResponse(serializer.errors, status=400)
     return JsonResponse({'error': 'Invalid request method.'}, status=405)
 
@@ -194,7 +198,7 @@ def generate_ical(request):
     response['Content-Disposition'] = 'attachment; filename="calendar.ics"'
     return response
 
-#getting the reservations of a user (untested)
+#getting the reservations of a user
 
 @api_view(['GET'])
 def get_user_reservations(request, email):
@@ -216,9 +220,10 @@ def generate_receipt(request, reservation_id):
     if request.method == 'GET':
         try:
             reservation = Reservation.objects.get(id=reservation_id)
+            print(reservation.user_id)
         except Reservation.DoesNotExist:
             return JsonResponse({'error': 'Reservation not found.'}, status=404)
-        user_response = requests.get(f'http://localhost:8000/users/api/user_by_id/{reservation.user_id}')
+        user_response = requests.get(f'http://user-service:8000/users/api/user_by_id/{reservation.user_id}')
         if user_response.status_code == 200:
             user = user_response.json()
             html_string = render_to_string('receipt.html', {'reservation': reservation, 'user': user})
@@ -239,7 +244,7 @@ def generate_receipt(request, reservation_id):
 
 
 
-#set price for given dates (untested)
+#set price for given dates 
 @api_view(['POST'])
 def set_price(request):
     if request.method == 'POST':
@@ -279,26 +284,24 @@ def set_price(request):
     return JsonResponse({'error': 'Invalid request method.'}, status=405)
 
 
-#delete reservation (untested)
+#delete reservation
 @api_view(['DELETE'])
 def delete_reservation(request, reservation_id):
-    if request.method == 'POST':
-        token = request.COOKIES.get('jwt')
-        if not token:
-            return JsonResponse({'message': 'Invalid Credentials', 'status': 401})
-        try:
-            payload = jwt.decode(token, 'PLEASE WORK', algorithms=['HS256'])
-        except jwt.ExpiredSignatureError:
-            return JsonResponse({'message': 'Invalid Credentials', 'status': 401})
-        if payload['is_superuser'] == False:
-            return JsonResponse({'message': 'You are not authorized to perform this action', 'status': 401})
-        try:
-            reservation = Reservation.objects.get(id=reservation_id)
-            reservation.delete()
-            return JsonResponse({'message': 'Reservation deleted successfully'}, status=200)
-        except Reservation.DoesNotExist:
-            return JsonResponse({'message': 'Reservation not found', 'status': 404})
-    return JsonResponse({'error': 'Invalid request method.'}, status=405)
+    token = request.COOKIES.get('jwt')
+    if not token:
+        return JsonResponse({'message': 'Invalid Credentials', 'status': 401})
+    try:
+        payload = jwt.decode(token, 'PLEASE WORK', algorithms=['HS256'])
+    except jwt.ExpiredSignatureError:
+        return JsonResponse({'message': 'Invalid Credentials', 'status': 401})
+    if payload['superuser'] == False:
+        return JsonResponse({'message': 'You are not authorized to perform this action', 'status': 401})
+    try:
+        reservation = Reservation.objects.get(id=reservation_id)
+        reservation.delete()
+        return JsonResponse({'message': 'Reservation deleted successfully'}, status=200)
+    except Reservation.DoesNotExist:
+        return JsonResponse({'message': 'Reservation not found', 'status': 404})
 
 #get_all_reservations
 def get_all_reservations(request):
@@ -323,3 +326,5 @@ def get_villa_availability(request):
         if not Reservation.objects.filter(check_in_date__lte=check_date, check_out_date__gt=check_date).exists():
             available_dates.append(check_date.isoformat())
     return JsonResponse({'available_dates': available_dates})
+
+#reads ical file and updates availability

@@ -8,12 +8,12 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/4.2/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-5t2)d_)_-fa3#r4v*&#dd8yzarp_v2^2k#nr9zp0zulxt%7&5g'
+SECRET_KEY = 'django-insecure-k9zg0om5!zrh#hjde&0kebd5wh7#_gk#2khwf11-m=u*ncvubk'
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ['authentication_microservice:8000','localhost']
+ALLOWED_HOSTS = ['authentication_microservice:8000','localhost','reservation_microservice:8080']
 
 
 # Application definition
@@ -27,7 +27,7 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'rest_framework',
     'corsheaders',
-    'villa_reservation'
+    'email_notifs',
 ]
 
 MIDDLEWARE = [
@@ -40,10 +40,8 @@ MIDDLEWARE = [
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     'corsheaders.middleware.CorsMiddleware',
 ]
-ROOT_URLCONF = 'reservation_microservice.urls'
 
-
-WSGI_APPLICATION = 'reservation_microservice.wsgi.application'
+ROOT_URLCONF = 'email_microservice.urls'
 
 TEMPLATES = [
     {
@@ -60,26 +58,42 @@ TEMPLATES = [
         },
     },
 ]
+
+WSGI_APPLICATION = 'email_microservice.wsgi.application'
+
+
 # Database
 # https://docs.djangoproject.com/en/4.2/ref/settings/#databases
 
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.mysql',
-        'NAME': 'reservation',
-        'USER': 'root',
-        'PASSWORD': 'root',
-        'HOST': 'database_reservation',
+        'NAME': 'email',
+        'USER': 'amine',
+        'PASSWORD': '1234',
+        'HOST': 'database_email',
         'PORT': '3306',
     },
 }
 
-MIGRATION_MODULES = {
-    'django.contrib.auth': None,
-}
+
 # Password validation
 # https://docs.djangoproject.com/en/4.2/ref/settings/#auth-password-validators
 
+AUTH_PASSWORD_VALIDATORS = [
+    {
+        'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator',
+    },
+    {
+        'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator',
+    },
+    {
+        'NAME': 'django.contrib.auth.password_validation.CommonPasswordValidator',
+    },
+    {
+        'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator',
+    },
+]
 
 
 # Internationalization
@@ -103,3 +117,10 @@ STATIC_URL = 'static/'
 # https://docs.djangoproject.com/en/4.2/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+EMAIL_HOST = 'smtp.gmail.com'
+EMAIL_PORT = 587
+EMAIL_USE_TLS =  True
+EMAIL_HOST_USER = 'villachouitercenter@gmail.com'
+EMAIL_HOST_PASSWORD = 'denqtgypnigrnbkd'

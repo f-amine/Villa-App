@@ -1,0 +1,32 @@
+version: '3.8'
+services:
+  email-service:
+    image: email-service
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8081:8081"
+    volumes:
+      - .:/app
+    depends_on:
+      - "database_email"
+    networks:
+      - authentication_microservice_villa-net
+  database_email:
+    image: mysql:latest
+    restart: always
+    ports:
+      - "33067:3306"
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: email
+      MYSQL_USER: amine
+      MYSQL_PASSWORD: 1234
+    volumes:
+      - .dbdata:/var/lib/mysql
+    networks:
+      - authentication_microservice_villa-net
+networks:
+  authentication_microservice_villa-net:
+    external: true

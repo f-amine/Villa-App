@@ -15,5 +15,5 @@ urlpatterns = [
     path('user_reservations_byemail/<str:email>', views.get_user_reservations, name='user_reservations'),
     path('generate_receipt/<int:reservation_id>', views.generate_receipt, name='generate_reciept'),
     path('set_price/', views.set_price, name='set_price'),
-    path('delete_reservation/<int:reservation_id>/', views.delete_reservation, name='delete_reservation'),
+    path('delete_reservation/<int:reservation_id>', views.delete_reservation, name='delete_reservation'),
 ]
