@@ -5,3 +5,4 @@ django-cors-headers==3.2.1
 Pyjwt==1.7.1
 requests==2.31.0
 icalendar==4.0.3
+weasyprint==59.0

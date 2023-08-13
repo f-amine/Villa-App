@@ -33,6 +33,7 @@ class LoginView(APIView):
                     'status':401}))
         payload = {
             'id': user.id,
+            'superuser': user.is_superuser,
             'exp': datetime.datetime.utcnow() + datetime.timedelta(minutes=60),
             'iat':  datetime.datetime.utcnow()
         }
@@ -63,3 +64,18 @@ class LogoutView(APIView):
         response.data={
             'message':'Logged out Succesfully','status':200}
         return response
+    
+
+#get user by email
+class GetUserByEmailView(APIView):
+    def get(self, request, email):
+        user = User.objects.filter(email=email).first()
+        serializer = UserSerializer(user)
+        return Response(serializer.data)
+    
+#get user by id
+class GetUserByIdView(APIView):
+    def get(self, request, id):
+        user = User.objects.filter(id=id).first()
+        serializer = UserSerializer(user)
+        return Response(serializer.data)

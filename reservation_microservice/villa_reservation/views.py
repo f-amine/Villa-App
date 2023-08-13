@@ -1,18 +1,23 @@
+from decimal import Decimal
 from django.shortcuts import render
 from django.http import JsonResponse
 from django.core import serializers
-from .models import Reservation
-from .serializers import ReservationSerializer
+from .models import Reservation,DatePricing
+from .serializers import ReservationSerializer,DatePricingSerializer
 import jwt
 import requests
-from django.http import JsonResponse
+from django.http import JsonResponse, HttpResponse
 from datetime import datetime, timedelta,date
 from icalendar import Calendar, Event
 from django.http import HttpResponse
-from django.views.decorators.csrf import csrf_exempt
 from rest_framework.decorators import api_view
+import tempfile
+from django.template.loader import render_to_string
+from weasyprint import HTML
 
+# Client Side apis 
 
+#get past reservations
 def get_past_reservations(request):
     token = request.COOKIES.get('jwt')
     if not token:
@@ -23,8 +28,25 @@ def get_past_reservations(request):
         return JsonResponse({'message': 'Invalid Credentials', 'status': 401})
     user_id = payload['id']
     past_reservations = Reservation.objects.filter(user_id=user_id, check_out_date__lt=date.today())
-    reservations_data = [{'check_in_date': r.check_in_date, 'check_out_date': r.check_out_date, 'guest_numbers': r.guest_numbers, 'is_family': r.is_family} for r in past_reservations]
+    reservations_data = [{'check_in_date': r.check_in_date, 'check_out_date': r.check_out_date, 'adult_numbers': r.adult_numbers, 'children_numbers': r.children_numbers, 'is_family': r.is_family} for r in past_reservations]
     return JsonResponse({'past reservations': reservations_data})
+
+
+#get_upcoming_reservations
+
+def get_upcoming_reservations(request):
+    token = request.COOKIES.get('jwt')
+    if not token:
+        return JsonResponse({'message': 'Invalid Credentials', 'status': 401})
+    try:
+        payload = jwt.decode(token, 'PLEASE WORK', algorithms=['HS256'])
+    except jwt.ExpiredSignatureError:
+        return JsonResponse({'message': 'Invalid Credentials', 'status': 401})
+    user_id = payload['id']
+    upcoming_reservations = Reservation.objects.filter(user_id=user_id, check_in_date__gt=date.today())
+    reservations_data = [{'check_in_date': r.check_in_date, 'check_out_date': r.check_out_date, 'adult_numbers': r.adult_numbers, 'children_numbers': r.children_numbers, 'is_family': r.is_family} for r in upcoming_reservations]
+    return JsonResponse({'upcoming reservations': reservations_data})
+
 #get_ongoing_reservations
 
 def get_ongoing_reservations(request):
@@ -37,46 +59,9 @@ def get_ongoing_reservations(request):
         return JsonResponse({'message': 'Invalid Credentials', 'status': 401})
     user_id = payload['id']
     ongoing_reservations = Reservation.objects.filter(user_id=user_id, check_in_date__lte=date.today(), check_out_date__gte=date.today())
-    reservations_data = [{'check_in_date': r.check_in_date, 'check_out_date': r.check_out_date, 'guest_numbers': r.guest_numbers, 'is_family': r.is_family} for r in ongoing_reservations]
-    return JsonResponse({'reservations': reservations_data})
+    reservations_data = [{'check_in_date': r.check_in_date, 'check_out_date': r.check_out_date, 'adult_numbers': r.adult_numbers, 'children_numbers': r.children_numbers, 'is_family': r.is_family} for r in ongoing_reservations]
+    return JsonResponse({'ongoing reservations': reservations_data})
 
-# get_upcoming_reservations
-def get_upcoming_reservations(request):
-    token = request.COOKIES.get('jwt')
-    if not token:
-        return JsonResponse({'message': 'Invalid Credentials', 'status': 401})
-    try:
-        payload = jwt.decode(token, 'PLEASE WORK', algorithms=['HS256'])
-    except jwt.ExpiredSignatureError:
-        return JsonResponse({'message': 'Invalid Credentials', 'status': 401})
-    user_id = payload['id']
-    upcoming_reservations = Reservation.objects.filter(user_id=user_id, check_in_date__gt=date.today())
-    reservations_data = [{'check_in_date': r.check_in_date, 'check_out_date': r.check_out_date, 'guest_numbers': r.guest_numbers, 'is_family': r.is_family} for r in upcoming_reservations]
-    return JsonResponse({'reservations': reservations_data})
-#get_all_reservations
-def get_all_reservations(request):
-    token = request.COOKIES.get('jwt')
-    if not token:
-        return JsonResponse({'message': 'Invalid Credentials', 'status': 401})
-    try:
-        payload = jwt.decode(token, 'PLEASE WORK', algorithms=['HS256'])
-    except jwt.ExpiredSignatureError:
-        return JsonResponse({'message': 'Invalid Credentials', 'status': 401})
-    user_id = payload['id']
-    all_reservations = Reservation.objects.filter(user_id=user_id)
-    reservations_data = [{'check_in_date': r.check_in_date, 'check_out_date': r.check_out_date, 'guest_numbers': r.guest_numbers, 'is_family': r.is_family} for r in all_reservations]
-    return JsonResponse({'reservations': reservations_data})
-
-#get_villa_availability
-
-def get_villa_availability(request):
-    today = date.today()
-    available_dates = []
-    for i in range(365 * 3):
-        check_date = today + timedelta(days=i)
-        if not Reservation.objects.filter(check_in_date__lte=check_date, check_out_date__gt=check_date).exists():
-            available_dates.append(check_date.isoformat())
-    return JsonResponse({'available_dates': available_dates})
 
 # check_villa_availability
 #http://example.com/get_villa_availability?check_in_date=2022-08-01&check_out_date=2022-08-10
@@ -148,13 +133,27 @@ def create_reservation(request):
         guest = payload['id']
         data = request.data.copy()
         data['user_id'] = guest
+        #calculating the total price
+        total_price = Decimal('0.00')
+        current_date = check_in_date
+        while current_date < check_out_date:
+            try:
+                date_pricing = DatePricing.objects.get(date=current_date)
+                total_price += date_pricing.price
+            except DatePricing.DoesNotExist:
+                return JsonResponse({'message': f'No pricing information available for {current_date}', 'status': 400})
+            current_date += timedelta(days=1)
         #creating the reservation
         serializer = ReservationSerializer(data=data, context={'request': request})
         if serializer.is_valid():
             serializer.save(user_id=guest)
-            return JsonResponse(serializer.data, status=201)
+            return JsonResponse(serializer.data,{'total price':total_price}, status=201)
         return JsonResponse(serializer.errors, status=400)
     return JsonResponse({'error': 'Invalid request method.'}, status=405)
+
+# _____________________________________________________________________________________________________________________________________
+# admin side apis
+
 
 #syncs airbnb calendar with our calendar
 def sync_airbnb_calendar(request):
@@ -194,3 +193,133 @@ def generate_ical(request):
     response = HttpResponse(calendar.to_ical(), content_type='text/calendar')
     response['Content-Disposition'] = 'attachment; filename="calendar.ics"'
     return response
+
+#getting the reservations of a user (untested)
+
+@api_view(['GET'])
+def get_user_reservations(request, email):
+    if request.method == 'GET':
+        user_response = requests.get(f'http://user-service:8000/users/api/user_by_email/{email}')
+        if user_response.status_code == 200:
+            user_id = user_response.json()['id']
+            reservations = Reservation.objects.filter(user_id=user_id)
+            serializer = ReservationSerializer(reservations, many=True)
+            return JsonResponse(serializer.data, safe=False)
+        else:
+            return JsonResponse({'message': 'User not found.'}, status=404)
+    return JsonResponse({'error': 'Invalid request method.'}, status=405)
+
+#generating a receipt as a pdf (untested)
+
+@api_view(['GET'])
+def generate_receipt(request, reservation_id):
+    if request.method == 'GET':
+        try:
+            reservation = Reservation.objects.get(id=reservation_id)
+        except Reservation.DoesNotExist:
+            return JsonResponse({'error': 'Reservation not found.'}, status=404)
+        user_response = requests.get(f'http://localhost:8000/users/api/user_by_id/{reservation.user_id}')
+        if user_response.status_code == 200:
+            user = user_response.json()
+            html_string = render_to_string('receipt.html', {'reservation': reservation, 'user': user})
+            html = HTML(string=html_string)
+            result = html.write_pdf()
+            response = HttpResponse(content_type='application/pdf;')
+            response['Content-Disposition'] = 'inline; filename=reservation.pdf'
+            response['Content-Transfer-Encoding'] = 'binary'
+            with tempfile.NamedTemporaryFile(delete=True) as output:
+                output.write(result)
+                output.flush()
+                output = open(output.name, 'rb')
+                response.write(output.read())
+            return response
+        else:
+            return JsonResponse({'message': 'User not found.'}, status=404)
+    return JsonResponse({'error': 'Invalid request method.'}, status=405)
+
+
+
+#set price for given dates (untested)
+@api_view(['POST'])
+def set_price(request):
+    if request.method == 'POST':
+        token = request.COOKIES.get('jwt')
+        if not token:
+            return JsonResponse({'message': 'Invalid Credentials', 'status': 401})
+        try:
+            payload = jwt.decode(token, 'PLEASE WORK', algorithms=['HS256'])
+        except jwt.ExpiredSignatureError:
+            return JsonResponse({'message': 'Invalid Credentials', 'status': 401})
+        if payload['superuser'] == False:
+            return JsonResponse({'message': 'You are not authorized to perform this action', 'status': 401})
+        data = request.data.copy()
+        if not data['price']:
+            return JsonResponse({'message': 'Invalid request parameters', 'status': 400})
+        try:
+            price = int(data['price'])
+        except ValueError:
+            return JsonResponse({'message': 'Invalid price', 'status': 400})
+        if price < 0:
+            return JsonResponse({'message': 'Invalid price', 'status': 400})
+        start_date = date.fromisoformat(data['start_date'])
+        end_date = date.fromisoformat(data['end_date'])
+        if start_date >= end_date:
+            return JsonResponse({'message': 'Start date must be before end date', 'status': 400})
+        if start_date < date.today():
+            return JsonResponse({'message': 'Invalid date', 'status': 400})
+        for i in range((end_date - start_date).days+1):
+            try:
+                price = DatePricing.objects.get(date=start_date + timedelta(days=i))
+                price.price = data['price']
+                price.save()
+            except DatePricing.DoesNotExist:
+                price = DatePricing(date=start_date + timedelta(days=i), price=data['price'])
+                price.save()
+        return JsonResponse({'message': 'Price updated successfully'}, status=200)
+    return JsonResponse({'error': 'Invalid request method.'}, status=405)
+
+
+#delete reservation (untested)
+@api_view(['DELETE'])
+def delete_reservation(request, reservation_id):
+    if request.method == 'POST':
+        token = request.COOKIES.get('jwt')
+        if not token:
+            return JsonResponse({'message': 'Invalid Credentials', 'status': 401})
+        try:
+            payload = jwt.decode(token, 'PLEASE WORK', algorithms=['HS256'])
+        except jwt.ExpiredSignatureError:
+            return JsonResponse({'message': 'Invalid Credentials', 'status': 401})
+        if payload['is_superuser'] == False:
+            return JsonResponse({'message': 'You are not authorized to perform this action', 'status': 401})
+        try:
+            reservation = Reservation.objects.get(id=reservation_id)
+            reservation.delete()
+            return JsonResponse({'message': 'Reservation deleted successfully'}, status=200)
+        except Reservation.DoesNotExist:
+            return JsonResponse({'message': 'Reservation not found', 'status': 404})
+    return JsonResponse({'error': 'Invalid request method.'}, status=405)
+
+#get_all_reservations
+def get_all_reservations(request):
+    token = request.COOKIES.get('jwt')
+    if not token:
+        return JsonResponse({'message': 'Invalid Credentials', 'status': 401})
+    try:
+        payload = jwt.decode(token, 'PLEASE WORK', algorithms=['HS256'])
+    except jwt.ExpiredSignatureError:
+        return JsonResponse({'message': 'Invalid Credentials', 'status': 401})
+    user_id = payload['id']
+    all_reservations = Reservation.objects.filter(user_id=user_id)
+    reservations_data = [{'check_in_date': r.check_in_date, 'check_out_date': r.check_out_date, 'adult_numbers': r.adult_numbers, 'children_numbers': r.children_numbers, 'is_family': r.is_family} for r in all_reservations]
+    return JsonResponse({'reservations': reservations_data})
+
+#get_villa_availability
+def get_villa_availability(request):
+    today = date.today()
+    available_dates = []
+    for i in range(365 * 3):
+        check_date = today + timedelta(days=i)
+        if not Reservation.objects.filter(check_in_date__lte=check_date, check_out_date__gt=check_date).exists():
+            available_dates.append(check_date.isoformat())
+    return JsonResponse({'available_dates': available_dates})

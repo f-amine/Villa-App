@@ -11,7 +11,8 @@ services:
       - .:/app
     depends_on:
       - "database"
-  
+    networks:
+      - villa-net
   database:
     image: mysql:latest
     restart: always
@@ -24,3 +25,8 @@ services:
       MYSQL_PASSWORD: root
     volumes:
       - .dbdata:/var/lib/mysql
+    networks:
+      - villa-net
+networks:
+  villa-net:
+    driver: bridge

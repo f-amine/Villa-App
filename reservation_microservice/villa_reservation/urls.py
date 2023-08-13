@@ -12,4 +12,8 @@ urlpatterns = [
     path('create_reservation/', views.create_reservation, name='create_reservation'),
     path('sync_airbnb_calendar/', views.sync_airbnb_calendar, name='sync_airbnb_calendar'),
     path('generate_ical/', views.generate_ical, name='generate_ical'),
+    path('user_reservations_byemail/<str:email>', views.get_user_reservations, name='user_reservations'),
+    path('generate_receipt/<int:reservation_id>', views.generate_receipt, name='generate_reciept'),
+    path('set_price/', views.set_price, name='set_price'),
+    path('delete_reservation/<int:reservation_id>/', views.delete_reservation, name='delete_reservation'),
 ]

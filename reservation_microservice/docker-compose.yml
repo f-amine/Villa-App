@@ -11,7 +11,8 @@ services:
       - .:/app
     depends_on:
       - "database_reservation"
-  
+    networks:
+      - authentication_microservice_villa-net
   database_reservation:
     image: mysql:latest
     restart: always
@@ -24,3 +25,8 @@ services:
       MYSQL_PASSWORD: 1234
     volumes:
       - .dbdata:/var/lib/mysql
+    networks:
+      - authentication_microservice_villa-net
+networks:
+  authentication_microservice_villa-net:
+    external: true
