@@ -95,9 +95,7 @@ def update_reservation(request, reservation_id):
         end_date = request.POST.get('end_date')
         reservation.check_in_date = start_date
         reservation.check_out_date = end_date
-        
         reservation.save()
-
         data = serializers.serialize('json', [reservation])
         return JsonResponse(data, safe=False, status=200)
 
@@ -305,17 +303,63 @@ def delete_reservation(request, reservation_id):
 
 #get_all_reservations
 def get_all_reservations(request):
-    token = request.COOKIES.get('jwt')
-    if not token:
-        return JsonResponse({'message': 'Invalid Credentials', 'status': 401})
-    try:
-        payload = jwt.decode(token, 'PLEASE WORK', algorithms=['HS256'])
-    except jwt.ExpiredSignatureError:
-        return JsonResponse({'message': 'Invalid Credentials', 'status': 401})
-    user_id = payload['id']
-    all_reservations = Reservation.objects.filter(user_id=user_id)
-    reservations_data = [{'check_in_date': r.check_in_date, 'check_out_date': r.check_out_date, 'adult_numbers': r.adult_numbers, 'children_numbers': r.children_numbers, 'is_family': r.is_family} for r in all_reservations]
+    all_reservations = Reservation.objects.all()
+    reservations_data = []
+    for reservation in all_reservations:
+        check_in_date = reservation.check_in_date
+        check_out_date = reservation.check_out_date
+        total_price = Decimal('0.00')
+        current_date = check_in_date
+        while current_date < check_out_date:
+            try:
+                date_pricing = DatePricing.objects.get(date=current_date)
+                total_price += date_pricing.price
+            except DatePricing.DoesNotExist:
+                return JsonResponse({'message': f'No pricing information available for {current_date}', 'status': 400})
+            current_date += timedelta(days=1)
+        reservation_data= {
+            'reservation_id': reservation.id,
+            'check_in_date': check_in_date,
+            'check_out_date': check_out_date,
+            'adult_numbers': reservation.adult_numbers,
+            'children_numbers': reservation.children_numbers,
+            'is_family': reservation.is_family,
+            'user_id': reservation.user_id,
+            'total_paid': total_price
+        }
+        reservations_data.append(reservation_data)
     return JsonResponse({'reservations': reservations_data})
+
+#get_reservation_by_id
+def get_reservation_by_id(request, reservation_id):
+    try:
+        reservation = Reservation.objects.get(id=reservation_id)
+        check_in_date = reservation.check_in_date
+        check_out_date = reservation.check_out_date
+        total_price = Decimal('0.00')
+        current_date = check_in_date
+        while current_date < check_out_date:
+            try:
+                date_pricing = DatePricing.objects.get(date=current_date)
+                total_price += date_pricing.price
+            except DatePricing.DoesNotExist:
+                return JsonResponse({'message': f'No pricing information available for {current_date}', 'status': 400})
+            current_date += timedelta(days=1)
+        reservation_data= {
+            'check_in_date': check_in_date,
+            'check_out_date': check_out_date,
+            'adult_numbers': reservation.adult_numbers,
+            'children_numbers': reservation.children_numbers,
+            'is_family': reservation.is_family,
+            'user_id': reservation.user_id,
+            'total_paid': total_price
+        }
+        return JsonResponse(reservation_data)
+    except Reservation.DoesNotExist:
+        return JsonResponse({'message': 'Reservation not found', 'status': 404})
+    
+
+
 
 #get_villa_availability
 def get_villa_availability(request):

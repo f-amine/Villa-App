@@ -11,5 +11,6 @@ class User(AbstractUser):
     is_staff=None
     last_login=None
     profile_pic=models.CharField(max_length=255,blank=True,null=True)
+    agent_id = models.CharField(max_length=100, null=True, blank=True)
     USERNAME_FIELD = 'email'
     REQUIRED_FIELDS = [first_name,last_name]
