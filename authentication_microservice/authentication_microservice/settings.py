@@ -25,9 +25,12 @@ SECRET_KEY = 'django-insecure-slxddilv*yiwp87t6cx$mp^*lu1l0wg!(yms%0gyup5w^fn%5j
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ['localhost','user-service']
+ALLOWED_HOSTS = ['localhost','user-service','hotel-hub-nextjs-front-service-1']
 
-
+CORS_ORIGIN_WHITELIST = [
+    'http://localhost:3000',
+]
+CORS_ALLOW_CREDENTIALS=True
 # Application definition
 
 INSTALLED_APPS = [

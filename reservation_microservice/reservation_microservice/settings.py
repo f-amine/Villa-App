@@ -13,9 +13,10 @@ SECRET_KEY = 'django-insecure-5t2)d_)_-fa3#r4v*&#dd8yzarp_v2^2k#nr9zp0zulxt%7&5g
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ['authentication_microservice:8000','localhost','reservation-service']
+ALLOWED_HOSTS = ['authentication_microservice:8000','localhost','reservation-service','hotel-hub-nextjs-front-service-1']
 
-
+CORS_ORIGIN_ALLOW_ALL=True
+CORS_ALLOW_CREDENTIALS=True
 # Application definition
 
 INSTALLED_APPS = [
@@ -40,6 +41,8 @@ MIDDLEWARE = [
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     'corsheaders.middleware.CorsMiddleware',
 ]
+
+
 ROOT_URLCONF = 'reservation_microservice.urls'
 
 
@@ -77,6 +80,8 @@ DATABASES = {
 MIGRATION_MODULES = {
     'django.contrib.auth': None,
 }
+
+
 # Password validation
 # https://docs.djangoproject.com/en/4.2/ref/settings/#auth-password-validators
 
@@ -98,9 +103,6 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/4.2/howto/static-files/
 
 STATIC_URL = 'static/'
-
-CORS_ORIGIN_ALLOW_ALL = True
-CORS_ALLOW_CREDENTIALS = True 
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/4.2/ref/settings/#default-auto-field

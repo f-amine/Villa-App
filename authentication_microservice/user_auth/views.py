@@ -34,13 +34,12 @@ class LoginView(APIView):
         payload = {
             'id': user.id,
             'superuser': user.is_superuser,
-            'agent_id': user.agent_id,
             'exp': datetime.datetime.utcnow() + datetime.timedelta(minutes=60),
             'iat':  datetime.datetime.utcnow()
         }
-        token = jwt.encode(payload, 'PLEASE WORK', algorithm='HS256').decode('utf-8')
-        response = JsonResponse({'message': 'login successfully', 'status': 200})
-        response.set_cookie('jwt', token)
+        token = jwt.encode(payload, 'PLEASE WORK', algorithm='HS256')
+        response = JsonResponse({'message': 'logged in successfully', 'status': 200})
+        response.set_cookie('jwt', token, samesite='Lax')
         return response
     
 class UserView(APIView):

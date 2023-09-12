@@ -65,9 +65,10 @@ def get_ongoing_reservations(request):
 
 # check_villa_availability
 #http://example.com/get_villa_availability?check_in_date=2022-08-01&check_out_date=2022-08-10
+@api_view(['POST'])
 def check_villa_availability(request):
-    check_in_date = request.GET.get('check_in_date')
-    check_out_date = request.GET.get('check_out_date')
+    check_in_date = request.data['check_in_date']
+    check_out_date = request.data['check_out_date']
     if not check_in_date or not check_out_date:
         return JsonResponse({'message': 'Invalid request parameters', 'status': 400})
     try:
@@ -81,7 +82,7 @@ def check_villa_availability(request):
         return JsonResponse({'message': 'Invalid date', 'status': 400})
     if Reservation.objects.filter(check_in_date__lt=check_out_date, check_out_date__gt=check_in_date).exists():
         return JsonResponse({'message': 'Villa is not available for the requested period', 'status': 400})
-    return JsonResponse({'message': 'Villa is available for the requested period', 'status': 200})
+    return JsonResponse({'message': 'Villa is available for the requested period you can proceed to booking', 'status': 200})
 
 
 def update_reservation(request, reservation_id):
