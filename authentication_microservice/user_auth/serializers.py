@@ -3,7 +3,7 @@ from .models import User
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
-        fields = ['id', 'first_name','last_name', 'email', 'password','profile_pic','is_active']
+        fields = ['id', 'first_name','last_name', 'email', 'password','profile_pic','is_active','braintree_id']
         extra_kwargs = {
             'password': {'write_only': True}
         }

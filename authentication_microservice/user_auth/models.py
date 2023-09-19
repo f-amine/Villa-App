@@ -6,6 +6,7 @@ class User(AbstractUser):
     last_name = models.CharField(max_length=50)
     email=models.CharField(max_length=255,unique=True)
     password=models.CharField(max_length=255)
+    braintree_id=models.CharField(max_length=255,blank=True,null=True)
     username=None
     is_active = models.BooleanField(default=True)
     is_staff=None

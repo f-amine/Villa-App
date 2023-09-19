@@ -26,9 +26,10 @@ SECRET_KEY = 'django-insecure-x6c=aaxnc!cw_9mpg9bg4ki%5_#6ggf07+rk9dcoc!)(y78m2b
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ['authentication_microservice:8000','localhost','reservation-service']
+ALLOWED_HOSTS = ['authentication_microservice:8000','localhost','reservation-service','hotel-hub-nextjs-front-service-1']
 
-
+CORS_ORIGIN_ALLOW_ALL=True
+CORS_ALLOW_CREDENTIALS=True
 # Application definition
 
 INSTALLED_APPS = [

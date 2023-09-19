@@ -6,7 +6,7 @@ from rest_framework.response import Response
 from .models import User
 import jwt
 import datetime
-
+from rest_framework.decorators import api_view
 
 class RegisterView(APIView):
     def post(self, request):
@@ -34,17 +34,17 @@ class LoginView(APIView):
         payload = {
             'id': user.id,
             'superuser': user.is_superuser,
-            'exp': datetime.datetime.utcnow() + datetime.timedelta(minutes=60),
+            'exp': datetime.datetime.utcnow() + datetime.timedelta(minutes=120),
             'iat':  datetime.datetime.utcnow()
         }
         token = jwt.encode(payload, 'PLEASE WORK', algorithm='HS256')
-        response = JsonResponse({'message': 'logged in successfully', 'status': 200})
+        response = JsonResponse({'message': 'Logged in successfully', 'status': 200})
         response.set_cookie('jwt', token, samesite='Lax')
         return response
     
 class UserView(APIView):
-    def get(self, request):
-        token = request.COOKIES.get('jwt')
+    def post(self, request):
+        token = request.data['jwt']
         if not token:
             return JsonResponse(({'message' : 'Invalid Credentials',
                     'status':401}))
@@ -79,3 +79,16 @@ class GetUserByIdView(APIView):
         user = User.objects.filter(id=id).first()
         serializer = UserSerializer(user)
         return Response(serializer.data)
+    
+#update user
+@api_view(['post'])
+def update_user_id(request, id):
+    try:
+        user = User.objects.get(id=id)
+    except User.DoesNotExist:
+        return Response(status=404) 
+    data = request.data
+    if 'braintree_id' in data:
+        user.braintree_id = data['braintree_id']
+        user.save()
+    return Response({'message': 'Braintree_id assigned succesfully', 'status':200})
